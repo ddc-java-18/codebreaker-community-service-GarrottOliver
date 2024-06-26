@@ -31,6 +31,7 @@ import org.hibernate.annotations.CreationTimestamp;
 public class Game {
 
   public static final int MAX_CODE_LENGTH = 20;
+
   @Id
   @GeneratedValue
   @Column(nullable = false, updatable = false)
