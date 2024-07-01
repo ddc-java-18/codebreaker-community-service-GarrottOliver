@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -45,5 +46,29 @@ userRepository.findByOauthKey(oauthKey)
     return userRepository
         .findByExternalKey(externalKey)
         .orElseThrow();
+  }
+
+  @Override
+  public User getCurrentUser() {
+    return (User) SecurityContextHolder.getContext()
+        .getAuthentication()
+        .getPrincipal();
+  }
+
+  @Override
+  public User update(User received) {
+
+    return userRepository
+        .findById(getCurrentUser()
+            .getId())
+        .map((user) -> {
+          String displayName = received.getDisplayName();
+          if (displayName != null) {
+            user.setDisplayName(displayName);
+          }
+          return userRepository.save(user);
+        })
+        .orElseThrow();
+
   }
 }

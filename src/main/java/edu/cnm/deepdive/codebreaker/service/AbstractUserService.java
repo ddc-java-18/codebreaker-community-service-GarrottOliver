@@ -10,4 +10,7 @@ public interface AbstractUserService {
 
   User get(UUID externalKey) throws NoSuchElementException;
 
+  User getCurrentUser();
+
+  User update(User received);
 }
