@@ -14,4 +14,7 @@ public interface GameRepository extends JpaRepository<Game, Long> {
   List<Game> findAllByPoolSizeAndCodeLength(int poolSize, int codeLength);
 
   Optional<Game> getByExternalKey(UUID externalKey);
+
+  Optional<Game> getByExternalKeyAndPlayer(UUID externalKey, User player);
+
 }
