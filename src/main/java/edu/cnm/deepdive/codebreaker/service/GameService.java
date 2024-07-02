@@ -96,7 +96,7 @@ public class GameService implements
 
   private static void validateCodePoint(int codePoint) throws InvalidPoolException {
     if (Character.isWhitespace(codePoint)
-        || Character.isWhitespace(codePoint)
+        || Character.isISOControl(codePoint)
         || !Character.isDefined(codePoint)
     ) {
       throw new InvalidPoolException();
@@ -107,7 +107,7 @@ public class GameService implements
   private String generateSecretCode(String pool, int codeLength) {
     int[] poolCodePoints = codePoints(pool);
     StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < poolCodePoints.length; i++) {
+    for (int i = 0; i < codeLength; i++) {
       builder.appendCodePoint(poolCodePoints[rng.nextInt(poolCodePoints.length)]);
     }
     return builder.toString();
