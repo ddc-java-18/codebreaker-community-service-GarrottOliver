@@ -41,7 +41,9 @@ import org.hibernate.annotations.CreationTimestamp;
 @JsonPropertyOrder ({"key", "created", "pool", "codeLength", "solved", "secretCode", "guesses"})
 public class Game {
 
-  public static final int MAX_CODE_LENGTH = 20;
+
+  public static final int MIN_CODE_LENGTH = 2;
+  public static final int MAX_CODE_LENGTH = 12;
 
   @Id
   @GeneratedValue
@@ -66,8 +68,8 @@ public class Game {
   private int poolSize;
 
   @Column(nullable = false, updatable = false)
-  @Min(2)
-  @Max(12)
+  @Min(MIN_CODE_LENGTH)
+  @Max(Game.MAX_CODE_LENGTH)
   private int codeLength;
 
   @Column(nullable = false, updatable = false)
