@@ -5,9 +5,17 @@ import edu.cnm.deepdive.codebreaker.model.dao.GuessRepository;
 import edu.cnm.deepdive.codebreaker.model.entity.Game;
 import edu.cnm.deepdive.codebreaker.model.entity.Guess;
 import edu.cnm.deepdive.codebreaker.model.entity.User;
+import edu.cnm.deepdive.codebreaker.service.exception.GameAlreadySolvedException;
+import edu.cnm.deepdive.codebreaker.service.exception.InvalidGuessCharacterException;
+import edu.cnm.deepdive.codebreaker.service.exception.InvalidGuessLengthException;
+import edu.cnm.deepdive.codebreaker.service.exception.InvalidPoolException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
-import java.util.stream.IntStream;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,28 +37,39 @@ public class GameService implements
 
   @Override
   public Game startGame(Game game, User user) throws InvalidPoolException {
-  game.setPool(validatePool(game.getPool()));
-  game.setPlayer(user);
-  game.setSecretCode(generateSecretCode(game.getPool(), game.getCodeLength()));
-  return gameRepository.save(game);
+    game.setPool(validatePool(game.getPool()));
+    game.setPlayer(user);
+    game.setSecretCode(generateSecretCode(game.getPool(), game.getCodeLength()));
+    return gameRepository.save(game);
   }
 
   @Override
   public Game getGame(UUID gameKey, User user) {
-return gameRepository
-    .getByExternalKeyAndPlayer(gameKey, user)
-    .orElseThrow();
+    return gameRepository
+        .getByExternalKeyAndPlayer(gameKey, user)
+        .orElseThrow();
   }
 
   @Override
-  public Guess submitGuess(UUID gameKey, Guess guess, User user) {
-  throw new UnsupportedOperationException();
+  public Guess submitGuess(UUID gameKey, Guess guess, User user)
+      throws NoSuchElementException, InvalidGuessLengthException,
+      InvalidGuessCharacterException, GameAlreadySolvedException {
+    return gameRepository
+        .getByExternalKeyAndPlayer(gameKey, user)
+        .map((game) -> {
+          validateGuess(game, guess);
+          evaluateGuess(game, guess);
+          guess.setGame(game);
+          return guessRepository.save(guess);
+        })
+        .orElseThrow();
+
   }
 
   @Override
-  public Guess getGuess(UUID gameKey, UUID guessKey, User user) {
- //   return gameRepository
-   // .getByExternalKeyAndPlayer(gameKey, user)
+  public Guess getGuess(UUID gameKey, UUID guessKey, User user) throws NoSuchElementException {
+    //   return gameRepository
+    // .getByExternalKeyAndPlayer(gameKey, user)
     //.flatMap((game) -> guessRepository.getByExternalKeyAndGame(guessKey, game))
     //.orElseThrow();
     return guessRepository
@@ -58,6 +77,7 @@ return gameRepository
         .orElseThrow();
 
   }
+
   private static String validatePool(String pool) throws InvalidPoolException {
     return pool
         .codePoints()
@@ -76,9 +96,9 @@ return gameRepository
 
   private static void validateCodePoint(int codePoint) throws InvalidPoolException {
     if (Character.isWhitespace(codePoint)
-    || Character.isWhitespace(codePoint)
-  || !Character.isDefined(codePoint)
-  ) {
+        || Character.isISOControl(codePoint)
+        || !Character.isDefined(codePoint)
+    ) {
       throw new InvalidPoolException();
     }
 
@@ -87,28 +107,61 @@ return gameRepository
   private String generateSecretCode(String pool, int codeLength) {
     int[] poolCodePoints = codePoints(pool);
     StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < poolCodePoints.length; i++) {
+    for (int i = 0; i < codeLength; i++) {
       builder.appendCodePoint(poolCodePoints[rng.nextInt(poolCodePoints.length)]);
     }
     return builder.toString();
 
   }
 
-  public static class InvalidPoolException extends IllegalArgumentException {
-
-    public InvalidPoolException() {
+  private static void validateGuess(Game game, Guess guess)
+      throws InvalidGuessCharacterException, InvalidGuessLengthException, GameAlreadySolvedException {
+    if (game.isSolved()) {
+      throw new GameAlreadySolvedException();
     }
-
-    public InvalidPoolException(String message) {
-      super(message);
+    String code = guess
+        .getCode();
+    int guessLength = (int) code
+        .codePoints()
+        .count();
+    if (guessLength != game.getCodeLength()) {
+      throw new InvalidGuessLengthException();
     }
+    Set<Integer> poolCodePointSet = game
+        .getPool()
+        .codePoints()
+        .boxed()
+        .collect(Collectors.toSet());
+    if (!poolCodePointSet.containsAll(code.codePoints().boxed().toList())) {
+      throw new UnsupportedOperationException();
 
-    public InvalidPoolException(String message, Throwable cause) {
-      super(message, cause);
     }
+  }
 
-    public InvalidPoolException(Throwable cause) {
-      super(cause);
+  private static void evaluateGuess(Game game, Guess guess) {
+    int correct = 0;
+    int[]  secretCodePoints = codePoints(game.getSecretCode());
+    int[] guessCodePoints = codePoints(guess.getCode());
+    Map<Integer, Integer> secretCodePointCounts = new HashMap<>();
+    Map<Integer, Integer> guessCodePointCounts = new HashMap<>();
+    for (int i = 0; i < secretCodePoints.length; i++) {
+      int secretCodePoint = secretCodePoints[i];
+      int guessCodePoint = guessCodePoints[i];
+      if (secretCodePoint == guessCodePoint) {
+        correct++;
+      } else {
+        secretCodePointCounts.put(secretCodePoint, 1 + secretCodePointCounts.getOrDefault(secretCodePoint, 0));
+        guessCodePointCounts.put(
+            guessCodePoint, 1 + guessCodePointCounts.getOrDefault(guessCodePoint, 0));
+
+      }
     }
+    guess.setCorrect(correct);
+    int close = secretCodePointCounts
+        .entrySet()
+            .stream()
+                .mapToInt((entry) -> Math.min(entry.getValue(), guessCodePointCounts.getOrDefault(entry.getKey(), 0)))
+                    .sum();
+    guess.setClose(close);
   }
 }

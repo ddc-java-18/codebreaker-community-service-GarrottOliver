@@ -53,6 +53,7 @@ public class User {
   @Column(nullable = false, updatable = false)
   @CreationTimestamp
   @Temporal(TemporalType.TIMESTAMP)
+  @JsonProperty(access = Access.READ_ONLY)
   private Instant created;
 
   @Column(nullable = false, updatable = true)
