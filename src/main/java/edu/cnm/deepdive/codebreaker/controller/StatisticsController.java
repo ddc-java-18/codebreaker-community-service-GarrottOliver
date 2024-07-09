@@ -27,7 +27,7 @@ public class StatisticsController {
   return statisticsService.getWithThreshold(poolSize, codeLength, gamesPlayed);
   }
 
-  @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE, params = {"pool-size", "code-length", ""})
+  @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE, params = {"pool-size", "code-length"})
   List<GameStatistics> get(@RequestParam("pool-size") int poolSize, @RequestParam("code-length") int codeLength) {
     return statisticsService.getWithoutThreshold(poolSize, codeLength);
   }
